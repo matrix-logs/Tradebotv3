@@ -16,6 +16,7 @@ from .signals.pattern_recognizer import PatternRecognizer
 from .strategy.strategy_manager import StrategyManager
 from .strategy.market_condition import MarketConditionDetector
 from .ai.groq_brain import GroqBrainManager, AIDecision, GROQ_AVAILABLE
+from .ai.vision_brain import VisionBrainManager, TradingDecision, VISION_AVAILABLE
 from .actions.action_executor import ActionExecutor, ExecutionMode
 from .actions.alert_manager import AlertManager
 from .utils.config_loader import ConfigLoader
@@ -134,6 +135,27 @@ class ScreenTradingBot:
         self._last_ai_analysis = None
         self._ai_analysis_interval = ai_config.get("analysis_interval_ticks", 60)  # Default ~30s at 2 FPS
 
+        # Vision Brain (Groq Vision) for chart screenshot analysis
+        vision_config = self.config.get("ai.vision", {})
+        if vision_config.get("enabled", False) and VISION_AVAILABLE:
+            try:
+                self.vision_brain = VisionBrainManager(
+                    api_key=ai_config.get("api_key"),  # Use same API key
+                    config=vision_config
+                )
+                self.logger.info(f"Vision Brain enabled (Groq Vision - {vision_config.get('model', 'llama-vision-90b')})")
+            except Exception as e:
+                self.logger.warning(f"Vision Brain initialization failed: {e}")
+                self.vision_brain = None
+        else:
+            self.vision_brain = None
+            if vision_config.get("enabled", False):
+                self.logger.warning("Vision Brain requested but not available. Install: pip install openai Pillow")
+
+        # Track vision analysis
+        self._last_vision_analysis = None
+        self._vision_analysis_interval = vision_config.get("analysis_interval_ticks", 120)  # Default ~60s at 2 FPS
+
         # Alert management
         self.alert_manager = AlertManager(
             config=self.config.get("actions.alerts", {})
@@ -248,9 +270,13 @@ class ScreenTradingBot:
                     f"Condition: {market_condition.trading_condition.value}"
                 )
 
-        # Get AI analysis periodically
+        # Get AI analysis periodically (text-based)
         if self.ai_brain and self._tick_count % self._ai_analysis_interval == 0:
             self._run_ai_analysis(current_price, market_condition)
+
+        # Get Vision analysis periodically (screenshot-based - THIS IS THE KEY!)
+        if self.vision_brain and self._tick_count % self._vision_analysis_interval == 0:
+            self._run_vision_analysis()
 
         # Get strategy signal
         indicators = snapshot.indicators
@@ -400,6 +426,77 @@ class ScreenTradingBot:
 
         return timeframe_data
 
+    def _run_vision_analysis(self):
+        """
+        Run vision analysis on current screen - THE AI ACTUALLY SEES YOUR CHARTS!
+
+        This captures a screenshot and sends it to the vision AI for analysis.
+        The AI visually analyzes:
+        - Candle patterns across all timeframes
+        - TheStrat scenarios (1, 2U, 2D, 3)
+        - Full Timeframe Continuity (FTFC)
+        - Support/resistance levels
+        """
+        try:
+            # Get vision config
+            vision_config = self.config.get("ai.vision", {})
+            symbol = self.config.get("general.symbol", "XAU/USD")
+
+            # Capture full screen or specific chart region
+            chart_region = vision_config.get("chart_region", None)
+            if chart_region:
+                # Capture specific region [x, y, width, height]
+                screenshot = self.screen_capture.capture_region(*chart_region)
+            else:
+                # Capture full screen
+                screenshot = self.screen_capture.capture_full()
+
+            if screenshot is None:
+                self.logger.warning("Vision: Failed to capture screenshot")
+                return
+
+            # Send to vision AI for analysis
+            analysis = self.vision_brain.analyze(
+                screenshot=screenshot,
+                symbol=symbol
+            )
+
+            if analysis:
+                self._last_vision_analysis = analysis
+
+                # Log the visual analysis - this is what the AI SEES
+                self.logger.info(
+                    f"Vision Analysis: {analysis.decision.value.upper()} | "
+                    f"Confidence: {analysis.confidence:.0%} | "
+                    f"FTFC: {analysis.ftfc_status}"
+                )
+
+                # Log timeframe breakdown
+                tf_summary = []
+                for tf_name in ["monthly", "weekly", "daily", "hourly"]:
+                    tf = getattr(analysis, tf_name, None)
+                    if tf:
+                        tf_summary.append(f"{tf_name[0].upper()}:{tf.scenario}")
+                if tf_summary:
+                    self.logger.info(f"Timeframes: {' | '.join(tf_summary)}")
+
+                self.logger.debug(f"Vision Reasoning: {analysis.reasoning}")
+
+                # Send alert for strong signals
+                if analysis.decision in [TradingDecision.STRONG_BUY, TradingDecision.STRONG_SELL]:
+                    self.alert_manager.send_alert(
+                        title=f"Vision Signal: {analysis.decision.value.upper()}",
+                        message=(
+                            f"FTFC: {analysis.ftfc_status}\n"
+                            f"Confidence: {analysis.confidence:.0%}\n"
+                            f"{analysis.reasoning}"
+                        ),
+                        signal_type="VISION"
+                    )
+
+        except Exception as e:
+            self.logger.error(f"Vision analysis error: {e}")
+
     def _on_trade_executed(self, signal: TradingSignal, result):
         """Handle trade execution."""
         self._trades_today += 1
@@ -502,6 +599,26 @@ class ScreenTradingBot:
                 "risk_level": self._last_ai_analysis.risk_level,
                 "reasoning": self._last_ai_analysis.reasoning,
                 "timestamp": self._last_ai_analysis.timestamp.isoformat()
+            }
+
+        # Add Vision analysis if available (THIS IS THE KEY FEATURE)
+        status["vision_enabled"] = self.vision_brain is not None
+        if self._last_vision_analysis:
+            va = self._last_vision_analysis
+            status["vision_analysis"] = {
+                "decision": va.decision.value,
+                "confidence": va.confidence,
+                "ftfc_status": va.ftfc_status,
+                "ftfc_aligned": va.ftfc_aligned,
+                "reasoning": va.reasoning,
+                "current_price": va.current_price,
+                "timeframes": {
+                    "monthly": va.monthly.scenario if va.monthly else "unknown",
+                    "weekly": va.weekly.scenario if va.weekly else "unknown",
+                    "daily": va.daily.scenario if va.daily else "unknown",
+                    "hourly": va.hourly.scenario if va.hourly else "unknown",
+                },
+                "timestamp": va.timestamp.isoformat()
             }
 
         return status

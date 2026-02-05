@@ -168,9 +168,22 @@ The bot includes adaptive market condition detection:
 - **Session Awareness**: London, New York, Asian session detection
 - **Trading Conditions**: Favorable, Caution, Avoid recommendations
 
-### AI Brain (Groq Integration)
+### AI Vision Brain (Groq Vision) - THE KEY FEATURE
 
-The bot features an AI-powered analysis engine using Groq's free, ultra-fast LLM inference:
+The bot features **Vision AI** that actually SEES your charts - just like when you send screenshots to Claude!
+
+**How It Works:**
+```
+Your Webull Screen (4 quadrants)
+         ↓
+   Screen Capture
+         ↓
+   Groq Vision AI (llama-3.2-90b-vision)
+         ↓
+   "I see Monthly=2U, Weekly=2U, Daily=2D pullback..."
+         ↓
+   Trading Decision with TheStrat Analysis
+```
 
 **Setup:**
 1. Get a free API key at https://console.groq.com
@@ -179,27 +192,42 @@ The bot features an AI-powered analysis engine using Groq's free, ultra-fast LLM
    export GROQ_API_KEY="your-key-here"
    ```
 
-**Features:**
-- Real-time TheStrat analysis using LLM reasoning
-- Multi-timeframe interpretation
-- Risk assessment and confidence scoring
-- Entry/exit suggestions with reasoning
+**What Vision AI Analyzes:**
+- Candle patterns across ALL visible timeframes
+- TheStrat scenarios (1, 2U, 2D, 3) visually identified
+- Full Timeframe Continuity (FTFC) status
+- Current price from chart
+- Support/resistance levels
 
-**Available Models (all free):**
-| Model | Speed | Reasoning |
-|-------|-------|-----------|
-| llama3-70b | Fast | Best |
-| llama3-8b | Fastest | Good |
-| mixtral | Fast | Good |
-| gemma2 | Fast | Good |
+**Vision Models (all free on Groq):**
+| Model | Speed | Quality |
+|-------|-------|---------|
+| llama-vision-90b | ~3-5s | Best (recommended) |
+| llama-vision-11b | ~1-2s | Good |
 
 **Configuration:**
 ```yaml
 ai:
-  enabled: true
+  api_key: ""  # Your Groq API key
+
+  # Vision AI - RECOMMENDED
+  vision:
+    enabled: true
+    model: "llama-vision-90b"
+    analysis_interval_ticks: 120  # Every 60 seconds
+    chart_region: null  # Captures full screen
+
+  # Text AI (optional fallback)
+  enabled: false
   model: "llama3-70b"
-  analysis_interval_ticks: 60  # ~30 seconds
-  decision_weight: 0.7  # How much to trust AI vs rules
+```
+
+**Sample Vision Output:**
+```
+Vision Analysis: WAIT | Confidence: 70% | FTFC: MIXED
+Timeframes: M:2U | W:2U | D:2D | H:1
+Reasoning: Higher timeframes bullish but daily showing pullback.
+           Wait for daily to show continuation before entry.
 ```
 
 ### Alerts

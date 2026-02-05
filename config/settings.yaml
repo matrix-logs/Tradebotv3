@@ -4,20 +4,21 @@
 # General Settings
 general:
   bot_name: "ScreenTrader"
+  symbol: "XAU/USD"  # Trading symbol (for AI context)
   log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
   data_dir: "./data"
   screenshots_dir: "./data/screenshots"
 
 # AI Brain Settings (Groq - Free, Ultra-Fast LLM Inference)
 ai:
-  # Enable AI-powered analysis
-  enabled: true
+  # Enable text-based AI analysis (reads extracted data)
+  enabled: false  # Disabled by default - use vision instead
 
   # Groq API key (get free key at https://console.groq.com)
   # Can also set GROQ_API_KEY environment variable
   api_key: ""  # Set your key here or use env var
 
-  # Model to use (all free on Groq):
+  # Model to use for text analysis (all free on Groq):
   # - llama3-70b: Best reasoning (recommended)
   # - llama3-8b: Faster, lighter
   # - mixtral: Good balance
@@ -37,6 +38,41 @@ ai:
   # AI decision weighting (how much to trust AI vs rule-based)
   # 0.0 = ignore AI, 1.0 = fully trust AI
   decision_weight: 0.7
+
+  # ===========================================
+  # VISION AI - THIS IS THE KEY FEATURE!
+  # ===========================================
+  # The Vision AI actually SEES your charts like you do when
+  # sending screenshots to Claude. It analyzes candle patterns,
+  # TheStrat scenarios, and FTFC visually.
+  vision:
+    # Enable vision-based analysis (RECOMMENDED)
+    enabled: true
+
+    # Vision model (Groq's vision-capable models):
+    # - llama-vision-90b: Best quality (recommended)
+    # - llama-vision-11b: Faster, lighter
+    model: "llama-vision-90b"
+
+    # How often to capture and analyze screenshots (in ticks)
+    # 120 ticks at 2 FPS = every 60 seconds
+    # Lower = more frequent analysis but more API calls
+    analysis_interval_ticks: 120
+
+    # Minimum seconds between vision API calls
+    min_interval_seconds: 30
+
+    # Cache TTL for vision analysis (seconds)
+    cache_ttl_seconds: 60
+
+    # Chart region to capture (optional)
+    # Format: [x, y, width, height]
+    # Leave empty to capture full screen
+    chart_region: null  # Will capture your full Webull window
+
+    # Save screenshots for review (debugging)
+    save_screenshots: true
+    screenshots_dir: "./data/vision_screenshots"
 
 # Screen Capture Settings
 screen:
