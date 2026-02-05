@@ -1,5 +1,7 @@
 """
 Strategy manager for coordinating multiple trading strategies.
+
+Now includes TheStrat as the primary strategy for forex/XAU-USD trading.
 """
 
 from datetime import datetime
@@ -10,12 +12,16 @@ from ..utils.data_store import DataStore
 from .base_strategy import BaseStrategy, StrategyState
 from .momentum_strategy import MomentumStrategy
 from .breakout_strategy import BreakoutStrategy
+from .thestrat_strategy import TheStratStrategy
+from .market_condition import MarketConditionDetector
 
 
 # Registry of available strategies
+# TheStrat is now the recommended primary strategy
 STRATEGY_REGISTRY: Dict[str, Type[BaseStrategy]] = {
-    "momentum": MomentumStrategy,
-    "breakout": BreakoutStrategy,
+    "thestrat": TheStratStrategy,  # Primary - based on Rob Smith's methodology
+    "momentum": MomentumStrategy,  # Legacy - not recommended per TheStrat principles
+    "breakout": BreakoutStrategy,  # Legacy - partially useful
 }
 
 
@@ -42,8 +48,11 @@ class StrategyManager:
         # Active strategies
         self.strategies: Dict[str, BaseStrategy] = {}
 
-        # Get active strategy from config
-        self.active_strategy_name = self.config.get("active", "momentum")
+        # Get active strategy from config (default to TheStrat)
+        self.active_strategy_name = self.config.get("active", "thestrat")
+
+        # Market condition detector for adaptive strategy selection
+        self.market_condition_detector: Optional[MarketConditionDetector] = None
 
         # Initialize configured strategies
         self._init_strategies()

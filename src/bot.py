@@ -14,6 +14,7 @@ from .vision.price_extractor import PriceExtractor, MarketSnapshot
 from .signals.signal_detector import SignalDetector, TradingSignal, SignalType
 from .signals.pattern_recognizer import PatternRecognizer
 from .strategy.strategy_manager import StrategyManager
+from .strategy.market_condition import MarketConditionDetector
 from .actions.action_executor import ActionExecutor, ExecutionMode
 from .actions.alert_manager import AlertManager
 from .utils.config_loader import ConfigLoader
@@ -98,6 +99,18 @@ class ScreenTradingBot:
             data_store=self.data_store,
             config=self.config.get("strategy", {})
         )
+
+        # Market condition detector for adaptive strategy
+        market_condition_config = self.config.get("strategy.market_condition", {})
+        if market_condition_config.get("enabled", False):
+            self.market_condition_detector = MarketConditionDetector(
+                data_store=self.data_store,
+                config=market_condition_config
+            )
+            self.strategy_manager.market_condition_detector = self.market_condition_detector
+            self.logger.info("Market condition detection enabled")
+        else:
+            self.market_condition_detector = None
 
         # Alert management
         self.alert_manager = AlertManager(
@@ -201,6 +214,16 @@ class ScreenTradingBot:
         # Log price periodically
         if self._tick_count % 30 == 0:  # Every ~15 seconds at 2 FPS
             self.logger.info(f"Price: {current_price:.2f} (conf: {snapshot.price.confidence:.0%})")
+
+        # Analyze market conditions if detector is available
+        if self.market_condition_detector:
+            market_condition = self.market_condition_detector.analyze(current_price)
+            if self._tick_count % 60 == 0:  # Log market condition every ~30 seconds
+                self.logger.info(
+                    f"Market: {market_condition.regime.value} | "
+                    f"Volatility: {market_condition.volatility_level} | "
+                    f"Condition: {market_condition.trading_condition.value}"
+                )
 
         # Get strategy signal
         indicators = snapshot.indicators
@@ -334,7 +357,7 @@ class ScreenTradingBot:
 
     def get_status(self) -> Dict:
         """Get current bot status."""
-        return {
+        status = {
             "is_running": self.is_running,
             "is_paused": self.is_paused,
             "start_time": self._start_time.isoformat() if self._start_time else None,
@@ -345,6 +368,20 @@ class ScreenTradingBot:
             "trade_stats": self.data_store.get_trade_stats(),
             "recent_prices": len(self.data_store.price_history)
         }
+
+        # Add market condition if available
+        if self.market_condition_detector:
+            prices = self.data_store.price_history
+            if prices:
+                current_price = prices[-1].get("price", 0)
+                condition = self.market_condition_detector.analyze(current_price)
+                status["market_condition"] = {
+                    "regime": condition.regime.value,
+                    "volatility": condition.volatility_level,
+                    "trading_condition": condition.trading_condition.value
+                }
+
+        return status
 
     def set_strategy(self, name: str) -> bool:
         """Change active strategy."""

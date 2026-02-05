@@ -66,12 +66,48 @@ ocr:
 
 # Trading Strategy Settings
 strategy:
-  # Active strategy name
-  active: "momentum"
+  # Active strategy name (thestrat recommended for XAU/USD and forex)
+  active: "thestrat"
 
   # Available strategies
   strategies:
+    # TheStrat - Rob Smith's Methodology (Recommended)
+    # Based on three Universal Truths and Full Timeframe Continuity
+    thestrat:
+      # Timeframes to analyze for FTFC (Full Timeframe Continuity)
+      # Standard: 60min, Daily, Weekly, Monthly
+      timeframes: ["60", "D", "W", "M"]
+
+      # Minimum timeframe alignment ratio (0-1) to consider entry
+      # 1.0 = require full continuity, 0.75 = allow 3/4 aligned
+      min_alignment: 0.75
+
+      # Require full timeframe continuity for entries
+      # When true, only trades with FTFC UP or FTFC DOWN are taken
+      require_ftfc: false
+
+      # Enabled setups (TheStrat patterns)
+      setups:
+        inside_bar_breakout: true    # Scenario 1 -> 2 breakouts
+        failed_2u: true              # Failed bullish continuation
+        failed_2d: true              # Failed bearish continuation
+        reversal_2u_2d: true         # Bullish to bearish reversal
+        reversal_2d_2u: true         # Bearish to bullish reversal
+
+      # Minimum confidence for setup signals (0-1)
+      min_setup_confidence: 0.6
+
+      # Use higher timeframe for bias (entry timeframe parent)
+      use_htf_bias: true
+
+      # XAU/USD specific settings
+      xau_usd:
+        # Gold is more volatile - adjust thresholds
+        inside_bar_threshold: 0.004  # 0.4% range for inside bar
+        volatility_adjustment: 1.5   # Multiply targets by this
+
     momentum:
+      # Legacy strategy - not recommended per TheStrat principles
       # Price change threshold to trigger signal (percentage)
       price_change_threshold: 0.5
       # Time window for momentum calculation (seconds)
@@ -93,6 +129,21 @@ strategy:
       profit_target_pips: 10
       stop_loss_pips: 5
       max_trade_duration_seconds: 300
+
+  # Market condition detection for adaptive strategy
+  market_condition:
+    enabled: true
+    # Trend strength threshold (ADX-like, 0-100)
+    trend_threshold: 25
+    # Volatility percentile (compared to recent history)
+    high_volatility_percentile: 75
+    low_volatility_percentile: 25
+    # Session awareness (forex market sessions)
+    session_aware: true
+    sessions:
+      london: ["08:00", "16:00"]
+      new_york: ["13:00", "21:00"]
+      asian: ["00:00", "08:00"]
 
 # Signal Detection
 signals:

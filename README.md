@@ -122,15 +122,51 @@ screen:
 
 ### Strategies
 
-**Momentum Strategy**
+**TheStrat Strategy (Recommended)**
+- Based on Rob Smith's Universal Truths methodology
+- Three Scenarios: Inside Bar (1), Trending (2U/2D), Outside Bar (3)
+- Full Timeframe Continuity (FTFC) analysis across M, W, D, 60min
+- Setups: Inside bar breakouts, Failed 2s, 2-2 Reversals
+- Optimized for XAU/USD and forex pairs
+
+**Momentum Strategy** (Legacy)
 - Trades based on price movement velocity
 - Best for trending markets
 - Configurable confirmation periods
 
-**Breakout Strategy**
+**Breakout Strategy** (Legacy)
 - Trades when price breaks support/resistance
 - Auto-detects key price levels
 - Supports manual level input
+
+### TheStrat Methodology
+
+TheStrat is based on three Universal Truths:
+
+1. **Scenario 1 (Inside Bar)** - Current candle is contained within prior candle
+   - Indicates consolidation/coiling
+   - Sets up for breakout plays
+
+2. **Scenario 2 (Trending)** - Takes out one side of prior candle
+   - 2U = Takes out high (bullish)
+   - 2D = Takes out low (bearish)
+
+3. **Scenario 3 (Outside Bar)** - Takes out both sides of prior candle
+   - Indicates reversal or expansion
+
+**Full Timeframe Continuity (FTFC):**
+- When all timeframes (M, W, D, 60min) align in same direction
+- FTFC UP = All green/bullish = Strong long bias
+- FTFC DOWN = All red/bearish = Strong short bias
+
+### Market Condition Detection
+
+The bot includes adaptive market condition detection:
+
+- **Regime Detection**: Strong/Weak Uptrend, Downtrend, Consolidation, Reversal
+- **Volatility Analysis**: High, Normal, Low volatility states
+- **Session Awareness**: London, New York, Asian session detection
+- **Trading Conditions**: Favorable, Caution, Avoid recommendations
 
 ### Alerts
 
@@ -174,8 +210,12 @@ Tradebotv3/
 │   │   └── pattern_recognizer.py
 │   ├── strategy/          # Trading strategies
 │   │   ├── base_strategy.py
-│   │   ├── momentum_strategy.py
-│   │   ├── breakout_strategy.py
+│   │   ├── thestrat_strategy.py   # TheStrat (recommended)
+│   │   ├── scenario_detector.py   # Scenario 1/2/3 detection
+│   │   ├── timeframe_continuity.py # FTFC analysis
+│   │   ├── market_condition.py    # Market regime detection
+│   │   ├── momentum_strategy.py   # Legacy
+│   │   ├── breakout_strategy.py   # Legacy
 │   │   └── strategy_manager.py
 │   ├── actions/           # Execution and alerts
 │   │   ├── action_executor.py
