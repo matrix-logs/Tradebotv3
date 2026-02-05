@@ -1,0 +1,184 @@
+# Screen-Based Trading Bot Configuration
+# =======================================
+
+# General Settings
+general:
+  bot_name: "ScreenTrader"
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  data_dir: "./data"
+  screenshots_dir: "./data/screenshots"
+
+# Screen Capture Settings
+screen:
+  # Monitor to capture (0 = primary, 1 = secondary, etc.)
+  monitor: 0
+
+  # Capture frame rate (captures per second)
+  # Higher = more responsive but more CPU usage
+  fps: 2
+
+  # Regions of Interest (ROI) - Define areas to monitor
+  # Format: [x, y, width, height] in pixels
+  # Use the region_selector tool to identify these
+  regions:
+    # Price display area
+    price:
+      enabled: true
+      coords: [100, 200, 200, 50]  # Adjust to your chart
+      type: "price"
+
+    # Bid/Ask spread area
+    bid_ask:
+      enabled: false
+      coords: [100, 250, 200, 100]
+      type: "bid_ask"
+
+    # Indicator area (RSI, MACD, etc.)
+    indicator_1:
+      enabled: false
+      coords: [100, 400, 150, 50]
+      type: "indicator"
+      name: "RSI"
+
+    # Order book / Level 2
+    order_book:
+      enabled: false
+      coords: [800, 200, 300, 400]
+      type: "order_book"
+
+# OCR Settings
+ocr:
+  # Engine: "tesseract" or "easyocr"
+  engine: "easyocr"
+
+  # Language for text recognition
+  language: "en"
+
+  # Confidence threshold (0-1)
+  confidence_threshold: 0.7
+
+  # Preprocessing options
+  preprocessing:
+    grayscale: true
+    contrast_enhance: true
+    denoise: true
+    scale_factor: 2  # Upscale for better OCR
+
+# Trading Strategy Settings
+strategy:
+  # Active strategy name
+  active: "momentum"
+
+  # Available strategies
+  strategies:
+    momentum:
+      # Price change threshold to trigger signal (percentage)
+      price_change_threshold: 0.5
+      # Time window for momentum calculation (seconds)
+      lookback_seconds: 30
+      # Minimum confirmations before signal
+      confirmations: 3
+
+    breakout:
+      # Support/resistance levels (will be auto-detected or manual)
+      levels_mode: "auto"  # "auto" or "manual"
+      manual_levels:
+        support: []
+        resistance: []
+      # Breakout confirmation candles
+      confirmation_candles: 2
+
+    scalping:
+      # Quick in/out trades
+      profit_target_pips: 10
+      stop_loss_pips: 5
+      max_trade_duration_seconds: 300
+
+# Signal Detection
+signals:
+  # Minimum confidence to act on signal
+  min_confidence: 0.75
+
+  # Cooldown between signals (seconds)
+  cooldown_seconds: 60
+
+  # Color detection for candles/indicators
+  colors:
+    bullish:
+      - [0, 200, 0]      # Green
+      - [0, 255, 0]
+    bearish:
+      - [200, 0, 0]      # Red
+      - [255, 0, 0]
+
+# Action Settings
+actions:
+  # Mode: "alert_only", "semi_auto", "full_auto"
+  # alert_only: Just send notifications
+  # semi_auto: Position mouse, wait for confirmation
+  # full_auto: Execute trades automatically (USE WITH CAUTION)
+  mode: "alert_only"
+
+  # Alert methods
+  alerts:
+    desktop_notification: true
+    sound_alert: true
+    sound_file: "./assets/alert.wav"
+
+    # Discord webhook (optional)
+    discord:
+      enabled: false
+      webhook_url: ""
+
+    # Telegram (optional)
+    telegram:
+      enabled: false
+      bot_token: ""
+      chat_id: ""
+
+  # Auto-execution settings (only if mode is semi_auto or full_auto)
+  execution:
+    # Button positions for your trading platform
+    buy_button: [500, 600]
+    sell_button: [600, 600]
+
+    # Delay before clicking (seconds)
+    click_delay: 0.5
+
+    # Confirmation required
+    require_confirmation: true
+
+# Risk Management
+risk:
+  # Maximum trades per day
+  max_trades_per_day: 10
+
+  # Maximum consecutive losses before pause
+  max_consecutive_losses: 3
+
+  # Pause duration after max losses (minutes)
+  pause_duration_minutes: 30
+
+  # Trading hours (24h format, local time)
+  trading_hours:
+    enabled: true
+    start: "09:00"
+    end: "16:00"
+
+  # Days to trade (0=Monday, 6=Sunday)
+  trading_days: [0, 1, 2, 3, 4]
+
+# Data Logging
+logging:
+  # Save screenshots of signals
+  save_signal_screenshots: true
+
+  # Log all price data
+  log_prices: true
+
+  # Trade journal
+  trade_journal: true
+  trade_journal_file: "./data/trades.csv"
+
+  # Performance metrics
+  track_performance: true
