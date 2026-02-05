@@ -8,6 +8,36 @@ general:
   data_dir: "./data"
   screenshots_dir: "./data/screenshots"
 
+# AI Brain Settings (Groq - Free, Ultra-Fast LLM Inference)
+ai:
+  # Enable AI-powered analysis
+  enabled: true
+
+  # Groq API key (get free key at https://console.groq.com)
+  # Can also set GROQ_API_KEY environment variable
+  api_key: ""  # Set your key here or use env var
+
+  # Model to use (all free on Groq):
+  # - llama3-70b: Best reasoning (recommended)
+  # - llama3-8b: Faster, lighter
+  # - mixtral: Good balance
+  # - gemma2: Google's model
+  model: "llama3-70b"
+
+  # How often to run AI analysis (in ticks, ~2 ticks/second)
+  # 60 = roughly every 30 seconds
+  analysis_interval_ticks: 60
+
+  # Minimum seconds between API calls (rate limiting)
+  min_interval_seconds: 10
+
+  # Cache TTL for analysis results (seconds)
+  cache_ttl_seconds: 30
+
+  # AI decision weighting (how much to trust AI vs rule-based)
+  # 0.0 = ignore AI, 1.0 = fully trust AI
+  decision_weight: 0.7
+
 # Screen Capture Settings
 screen:
   # Monitor to capture (0 = primary, 1 = secondary, etc.)

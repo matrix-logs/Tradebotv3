@@ -16,6 +16,9 @@ pynput>=1.7.6                 # Input monitoring
 pandas>=2.0.0                 # Data manipulation
 ta>=0.11.0                    # Technical analysis indicators
 
+# AI Brain (Groq - free, ultra-fast LLM inference)
+openai>=1.0.0                 # OpenAI-compatible client for Groq API
+
 # Notifications and Alerts
 plyer>=2.1.0                  # Desktop notifications
 requests>=2.31.0              # For webhook alerts (Discord, Telegram)

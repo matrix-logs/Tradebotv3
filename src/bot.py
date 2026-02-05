@@ -15,6 +15,7 @@ from .signals.signal_detector import SignalDetector, TradingSignal, SignalType
 from .signals.pattern_recognizer import PatternRecognizer
 from .strategy.strategy_manager import StrategyManager
 from .strategy.market_condition import MarketConditionDetector
+from .ai.groq_brain import GroqBrainManager, AIDecision, GROQ_AVAILABLE
 from .actions.action_executor import ActionExecutor, ExecutionMode
 from .actions.alert_manager import AlertManager
 from .utils.config_loader import ConfigLoader
@@ -111,6 +112,27 @@ class ScreenTradingBot:
             self.logger.info("Market condition detection enabled")
         else:
             self.market_condition_detector = None
+
+        # AI Brain (Groq) for intelligent analysis
+        ai_config = self.config.get("ai", {})
+        if ai_config.get("enabled", False) and GROQ_AVAILABLE:
+            try:
+                self.ai_brain = GroqBrainManager(
+                    api_key=ai_config.get("api_key"),
+                    config=ai_config
+                )
+                self.logger.info(f"AI Brain enabled (Groq - {ai_config.get('model', 'llama3-70b')})")
+            except Exception as e:
+                self.logger.warning(f"AI Brain initialization failed: {e}")
+                self.ai_brain = None
+        else:
+            self.ai_brain = None
+            if ai_config.get("enabled", False):
+                self.logger.warning("AI Brain requested but Groq not available. Install: pip install openai")
+
+        # Track last AI analysis
+        self._last_ai_analysis = None
+        self._ai_analysis_interval = ai_config.get("analysis_interval_ticks", 60)  # Default ~30s at 2 FPS
 
         # Alert management
         self.alert_manager = AlertManager(
@@ -216,6 +238,7 @@ class ScreenTradingBot:
             self.logger.info(f"Price: {current_price:.2f} (conf: {snapshot.price.confidence:.0%})")
 
         # Analyze market conditions if detector is available
+        market_condition = None
         if self.market_condition_detector:
             market_condition = self.market_condition_detector.analyze(current_price)
             if self._tick_count % 60 == 0:  # Log market condition every ~30 seconds
@@ -224,6 +247,10 @@ class ScreenTradingBot:
                     f"Volatility: {market_condition.volatility_level} | "
                     f"Condition: {market_condition.trading_condition.value}"
                 )
+
+        # Get AI analysis periodically
+        if self.ai_brain and self._tick_count % self._ai_analysis_interval == 0:
+            self._run_ai_analysis(current_price, market_condition)
 
         # Get strategy signal
         indicators = snapshot.indicators
@@ -287,6 +314,91 @@ class ScreenTradingBot:
             return False
 
         return True
+
+    def _run_ai_analysis(self, current_price: float, market_condition=None):
+        """Run AI analysis using Groq brain."""
+        try:
+            # Build timeframe data from data store
+            timeframe_data = self._build_timeframe_data()
+
+            # Build market condition dict
+            mc_dict = None
+            if market_condition:
+                mc_dict = {
+                    "regime": market_condition.regime.value,
+                    "volatility": market_condition.volatility_level,
+                    "session": getattr(market_condition, 'session', 'unknown')
+                }
+
+            # Get AI analysis
+            analysis = self.ai_brain.get_analysis(
+                current_price=current_price,
+                timeframe_data=timeframe_data,
+                market_condition=mc_dict
+            )
+
+            if analysis:
+                self._last_ai_analysis = analysis
+
+                # Log AI decision
+                self.logger.info(
+                    f"AI Analysis: {analysis.decision.value.upper()} | "
+                    f"Confidence: {analysis.confidence:.0%} | "
+                    f"Risk: {analysis.risk_level}"
+                )
+                self.logger.debug(f"AI Reasoning: {analysis.reasoning}")
+
+                # Send alert for strong signals
+                if analysis.decision in [AIDecision.STRONG_BUY, AIDecision.STRONG_SELL]:
+                    self.alert_manager.send_alert(
+                        title=f"AI Signal: {analysis.decision.value.upper()}",
+                        message=f"Confidence: {analysis.confidence:.0%}\n{analysis.reasoning}",
+                        signal_type="AI"
+                    )
+
+        except Exception as e:
+            self.logger.error(f"AI analysis error: {e}")
+
+    def _build_timeframe_data(self) -> Dict:
+        """Build timeframe data structure for AI analysis."""
+        # This would ideally come from the screen capture of multiple timeframes
+        # For now, we'll build it from available price history
+        prices = self.data_store.price_history
+
+        timeframe_data = {
+            "monthly": {"scenario": "unknown", "bias": "neutral"},
+            "weekly": {"scenario": "unknown", "bias": "neutral"},
+            "daily": {"scenario": "unknown", "bias": "neutral"},
+            "hourly": {"scenario": "unknown", "bias": "neutral"}
+        }
+
+        # If we have price data, try to determine scenarios
+        if len(prices) >= 2:
+            recent = prices[-10:] if len(prices) >= 10 else prices
+
+            # Simple trend detection from recent prices
+            first_price = recent[0].get("price", 0)
+            last_price = recent[-1].get("price", 0)
+
+            if last_price > first_price * 1.001:  # Up by 0.1%
+                timeframe_data["hourly"]["bias"] = "bullish"
+                timeframe_data["hourly"]["scenario"] = "2U"
+            elif last_price < first_price * 0.999:  # Down by 0.1%
+                timeframe_data["hourly"]["bias"] = "bearish"
+                timeframe_data["hourly"]["scenario"] = "2D"
+            else:
+                timeframe_data["hourly"]["bias"] = "neutral"
+                timeframe_data["hourly"]["scenario"] = "1"
+
+            # Add price info
+            if recent:
+                highs = [p.get("price", 0) for p in recent]
+                lows = [p.get("price", 0) for p in recent]
+                timeframe_data["hourly"]["high"] = max(highs)
+                timeframe_data["hourly"]["low"] = min(lows)
+                timeframe_data["hourly"]["close"] = last_price
+
+        return timeframe_data
 
     def _on_trade_executed(self, signal: TradingSignal, result):
         """Handle trade execution."""
@@ -380,6 +492,17 @@ class ScreenTradingBot:
                     "volatility": condition.volatility_level,
                     "trading_condition": condition.trading_condition.value
                 }
+
+        # Add AI analysis if available
+        status["ai_enabled"] = self.ai_brain is not None
+        if self._last_ai_analysis:
+            status["ai_analysis"] = {
+                "decision": self._last_ai_analysis.decision.value,
+                "confidence": self._last_ai_analysis.confidence,
+                "risk_level": self._last_ai_analysis.risk_level,
+                "reasoning": self._last_ai_analysis.reasoning,
+                "timestamp": self._last_ai_analysis.timestamp.isoformat()
+            }
 
         return status
 

@@ -168,6 +168,40 @@ The bot includes adaptive market condition detection:
 - **Session Awareness**: London, New York, Asian session detection
 - **Trading Conditions**: Favorable, Caution, Avoid recommendations
 
+### AI Brain (Groq Integration)
+
+The bot features an AI-powered analysis engine using Groq's free, ultra-fast LLM inference:
+
+**Setup:**
+1. Get a free API key at https://console.groq.com
+2. Set in config or environment variable:
+   ```bash
+   export GROQ_API_KEY="your-key-here"
+   ```
+
+**Features:**
+- Real-time TheStrat analysis using LLM reasoning
+- Multi-timeframe interpretation
+- Risk assessment and confidence scoring
+- Entry/exit suggestions with reasoning
+
+**Available Models (all free):**
+| Model | Speed | Reasoning |
+|-------|-------|-----------|
+| llama3-70b | Fast | Best |
+| llama3-8b | Fastest | Good |
+| mixtral | Fast | Good |
+| gemma2 | Fast | Good |
+
+**Configuration:**
+```yaml
+ai:
+  enabled: true
+  model: "llama3-70b"
+  analysis_interval_ticks: 60  # ~30 seconds
+  decision_weight: 0.7  # How much to trust AI vs rules
+```
+
 ### Alerts
 
 Configure notifications in `config/settings.yaml`:
